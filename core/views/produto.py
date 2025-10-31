@@ -20,10 +20,30 @@ class ProdutoViewSet(ModelViewSet):
         """Optimize queries with select_related to avoid N+1 queries."""
         return Produto.objects.select_related('categoria', 'fornecedor').filter(ativo=True)
     
+    # NOVA FUNÇÃO ADICIONADA:
+    @action(detail=False, methods=['get'])
+    def todos(self, request):
+        """
+        Retorna todos os produtos ativos, sem paginação, 
+        mas aplicando filtros, busca e ordenação.
+        Usado para dashboards e relatórios.
+        """
+        # Começa com o queryset base (que já filtra por ativo=True)
+        queryset = self.get_queryset()
+        
+        # Aplica os filtros e ordenação (SearchFilter, OrderingFilter, DjangoFilterBackend)
+        # Isso permite usar ?search=, ?ordering=, ?categoria= etc.
+        filtered_queryset = self.filter_queryset(queryset)
+        
+        # Omitir a paginação
+        serializer = self.get_serializer(filtered_queryset, many=True)
+        return Response(serializer.data)
+    
     @action(detail=False, methods=['get'])
     def estoque_baixo(self, request):
         """Retorna produtos com estoque baixo."""
         produtos = self.get_queryset().filter(estoque_atual__lte=F('estoque_minimo'))
+        # Note: Esta ação também poderia ser usada pelo dashboard!
         serializer = self.get_serializer(produtos, many=True)
         return Response(serializer.data)
     
